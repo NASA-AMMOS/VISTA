@@ -46,6 +46,9 @@ $$reporter:
 Is there an ask ticket number (ex. 322)?
 $$ask:
 
+Is there a mcr ticket number (ex. 190)?
+$$mcr:
+
 Time estimate (ex. 3 days or 8 hours)
 $$estimate:
 

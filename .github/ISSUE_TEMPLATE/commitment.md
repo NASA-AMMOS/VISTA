@@ -1,8 +1,8 @@
 ---
-name: Commitment
+name: Requirement
 about: Items in this category are considered significant to the functionality of the software, the workload of the subsystem or a promised commitment to customers or the MGSS Program Office
 title: ''
-labels: commitment
+labels: commitment, requirement
 assignees: ''
 
 ---
@@ -36,6 +36,9 @@ $$reporter:
 
 Is there an ask ticket number (ex. 322)?
 $$ask:
+
+Is there a mcr ticket number (ex. 190)?
+$$mcr:
 
 Time estimate (ex. 3 days or 8 hours)
 $$estimate:
