@@ -78,11 +78,17 @@ export default function TimePlugin(options) {
 
         const systemOptions = {
             timeSystem: system.key,
-            bounds: BOUNDS_MAP[key]
+            name: 'fixed'
         };
+        if(timeSystem.modeSettings?.fixed?.bounds){
+            systemOptions.bounds=timeSystem.modeSettings.fixed.bounds;
 
-        if (timeSystem.presets) {
-            systemOptions.presets = timeSystem.presets;
+        } else {
+            systemOptions.bounds=BOUNDS_MAP[key];
+        }
+
+        if (timeSystem.modeSettings?.fixed?.presets) {
+            systemOptions.presets = timeSystem.modeSettings.fixed.presets;
         }
         if (timeSystem.limit) {
             systemOptions.limit = timeSystem.limit;
@@ -91,34 +97,52 @@ export default function TimePlugin(options) {
             systemOptions.records = options.records;
         }
 
+        
+
         menuOptions.push(systemOptions);
         
         if (options.allowRealtime && system.isUTCBased) {
+            var offsetConfig = {
+                start: -30 * 60 * 1000,
+                end: 5 * 60 * 1000
+            }
+            var presetConfig = []
+            if (timeSystem.modeSettings?.realtime?.clockOffsets){
+                offsetConfig = timeSystem.modeSettings.realtime.clockOffsets
+            }
+            if (timeSystem.modeSettings?.realtime?.presets){
+                presetConfig = timeSystem.modeSettings.realtime.presets
+            }
             useUTCClock = true;
             menuOptions.push({
+                name:'realtime',
                 timeSystem: system.key,
                 clock: 'utc.local',
-                clockOffsets: {
-                    start: -30 * 60 * 1000,
-                    end: 5 * 60 * 1000
-                }
+                clockOffsets: offsetConfig,
+                presets: presetConfig            
             });
         }
         if (options.allowRealtime && options.allowLAD) {
             var ladClock = new LADClock(key);
+            var offsetConfig = {
+                start: -30 * 60 * 1000,
+                end: 5 * 60 * 1000
+            }
+            if (timeSystem.modeSettings?.lad?.clockOffsets){
+                offsetConfig = timeSystem.modeSettings.lad.clockOffsets
+            }
+
             install.ladClocks[key] = ladClock;
             openmct.time.addClock(ladClock);
             menuOptions.push({
                 timeSystem: system.key,
                 clock: ladClock.key,
-                clockOffsets: {
-                    start: -30 * 60 * 1000,
-                    end: 5 * 60 * 1000
-                }
+                clockOffsets: offsetConfig,
             });
         }
     });
     if (options.defaultMode) {
+        
         let matchingConfigIndex = menuOptions.findIndex(menuOption => 
             menuOption.clock === options.defaultMode);
 
@@ -131,7 +155,7 @@ export default function TimePlugin(options) {
                 Are LAD or realtime enabled? Does the defaultMode contain a typo?`);
         }
     }
-
+    
     if (useUTCClock) {
         openmct.time.addClock(new UTCClock());
     }

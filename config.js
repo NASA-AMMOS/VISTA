@@ -198,84 +198,110 @@
              *
              * key property is required and other options are optional
              * timeSystem:
-             * * key: string, required
+             * * key: string, required. Time system. Options are 'scet', 'ert', 'sclk', 'msl.sol' and 'lmst'.
              * * limit: number, optional - maximum duration between start and end bounds allow
-             * * presets: array, optional - preset bounds for convenience
-             * * * preset:
-             * * * * label: string, descriptive label for preset
+             * * modeSettings: object, optional - presets for convenience. 
+             * * * fixed: object, optional - valid objects are bounds objects and presets array. 
+             * * * realtime: object, optional - valid objects are clockOffsets and presets array. 
+             * * * lad:object, optional - valid objects are clockoffsets. 
+             * * * * 
+             * * * * Optional objects: 
              * * * * bounds: start and end bounds for preset as numbers
-             * * * * * * * * start and end can be declared as a number or a function returning a number
-             * 
+             * * * * * * * * start: and end: can be declared as a number or a function returning a number
+             * * * * presets: array of objects consisting of: 
+             * * * * * bounds: - required. 
+             * * * * * label: - required, string
+             * * * * clockOffsets: object, optional. Start and end relative to active clock. 
+             * * * * start: and end: numbers relative to active clock's 0. Start is negative, end is positive. 
              * *advanced** example configuration below 
-             *
+             
             timeSystems: [
-                {
-                    key:'scet',
-                    presets: [
-                        {
-                            label: 'Last 2 hours',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60 * 2,
-                                end: Date.now()
-                            }
-                        },
-                        {
-                            label: 'Last 1 hour',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60,
-                                end: Date.now()
-                            }
+             {
+                key:'scet',
+                modeSettings:{
+                  fixed:{
+                    bounds:{
+                            start: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 2)).setUTCHours(0, 0, 0, 0),
+                            end: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).setUTCHours(23,59, 59, 999)                       
+                            },
+                    presets:[
+                      {
+                        label: 'Last 2 hours (SCET Recorded)',
+                        bounds: {
+                            start: Date.now() - 1000 * 60 * 60 * 2,
+                            end: Date.now()
                         }
-                    ],
-                    limit: 1000 * 60 * 60 * 6
-                },
-                {
-                    key:'ert',
-                    presets: [
-                        {
-                            label: 'Last 2 hours',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60 * 2,
-                                end: Date.now()
-                            }
-                        },
-                        {
-                            label: 'Last 1 hour',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60,
-                                end: Date.now()
-                            }
+                      },
+                    ]
+                  },
+                  realtime:{
+                    clockOffsets:{
+                      start: -60 * 60 * 1000,
+                      end: 5 * 60 * 1000
+                    },
+                    presets:[
+                      {
+                        label: 'Last 2 hours (SCET Realtime)',
+                        bounds: {
+                            start: -60 * 60 * 1000,
+                            end: 5 * 60 * 1000
                         }
-                    ],
-                    limit: 1000 * 60 * 60 * 6
+                      }
+                    ]
+                  },
+                  lad:{
+                    clockOffsets:{
+                      start: -60 * 60 * 1000,
+                      end: 5 * 60 * 1000
+                    },
+                  },
+              },
+                limit: 1000 * 60 * 60 * 60
+            },
+            {
+              key:'ert',
+              modeSettings:{
+                fixed:{
+                  bounds:{
+                          start: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 4)).setUTCHours(0, 0, 0, 0),
+                          end: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())).setUTCHours(23,59, 59, 999)                       
+                          },
+                  presets:[
+                    {
+                      label: 'Last 2 hours (ERT Recorded)',
+                      bounds: {
+                          start: Date.now() - 1000 * 60 * 60 * 2,
+                          end: Date.now()
+                      }
+                    },
+                  ]
                 },
-                {
-                    key:'sclk',
-                    presets: [
-                        {
-                            label: 'Last 2 hours',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60 * 2,
-                                end: Date.now()
-                            }
-                        },
-                        {
-                            label: 'Last 1 hour',
-                            bounds: {
-                                start: Date.now() - 1000 * 60 * 60,
-                                end: Date.now()
-                            }
-                        }
-                    ],
-                    limit: 1000 / 5 * 60 * 60 * 6
+                realtime:{
+                  clockOffsets:{
+                    start: -60 * 60 * 1000,
+                    end: 5 * 60 * 1000
+                  },
+                  presets:[
+                    {
+                      label: 'Last 2 hours (ERT Realtime)',
+                      bounds: {
+                          start: -60 * 60 * 1000,
+                          end: 5 * 60 * 1000
+                      }
+                    }
+                  ]
                 },
-                {
-                    key:'lmst',
-                    presets: []
-                }
-            ],
+                lad:{
+                  clockOffsets:{
+                    start: -60 * 60 * 1000,
+                    end: 5 * 60 * 1000
+                  },
+                },
+            },
+              limit: 1000 * 60 * 60 * 60
+           }
+          ],
             */
-
             /**
              * allowRealtime: whether or not to allow utc-relative time conductor.
              */
