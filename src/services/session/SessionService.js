@@ -43,7 +43,7 @@ const ERROR_PREFIX = 'Error when notifying listener: ';
 class SessionService {
     constructor(openmct, openmctMCWSConfig) {
         this.openmct = openmct;
-        this.datasetCache;
+        this.datasetCache = null;
 
         this.subscriptions = {
             session: [],
@@ -80,7 +80,7 @@ class SessionService {
 
         return () => {
             this.subscriptions.session = this.subscriptions.session.filter((cb) => {
-                cb !== callback;
+                return cb !== callback;
             });
         };
     };
@@ -100,7 +100,7 @@ class SessionService {
 
         return () => {
             this.subscriptions.historical = this.subscriptions.historical.filter((cb) => {
-                cb !== callback;
+                return cb !== callback;
             });
         };
     };
