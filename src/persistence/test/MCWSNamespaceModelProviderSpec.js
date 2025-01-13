@@ -1,138 +1,246 @@
-/*global define,describe,beforeEach,jasmine,Promise,it,expect*/
-define([
-    // '../src/MCWSNamespaceModelProvider'
-], function (
-    // MCWSNamespaceModelProvider
-) {
-    'use strict';
 
-    xdescribe('MCWSNamespaceModelProvider', function () {
-        var namespaceService,
+import MCWSUserContainerProvider from '../MCWSUserContainerProvider';
+import MCWSPersistenceProvider from '../MCWSPersistenceProvider';
+import mcws from '../../services/mcws/mcws';
+
+describe('MCWS Providers', () => {
+    let openmct;
+    let someNamespace;
+    let anotherNamespace;
+    let personalContainerNamespace;
+    let personalNamespace;
+    let namespaces;
+    let userContainerProvider;
+    let persistenceProvider;
+
+    beforeEach(() => {
+        openmct = {
+            user: {
+                getCurrentUser: () => Promise.resolve({ id: 'myUser' })
+            }
+        };
+
+        someNamespace = {
+            id: 'some-namespace:root',
+            key: 'some-namespace',
+            name: 'Some Namespace',
+            url: '/some/namespace/url'
+        };
+        anotherNamespace = {
+            id: 'another-namespace:root',
+            key: 'another-namespace',
+            name: 'Another Namespace',
+            url: '/another/namespace/url',
+            location: 'some-namespace:root'
+        };
+        personalContainerNamespace = {
+            id: 'personal',
+            key: 'personal',
+            name: 'personal',
+            url: '/some/personal/namespace',
+            containsNamespaces: true,
+            childTemplate: {
+                id: 'personal-{username}:root',
+                key: 'personal-{username}',
+                name: '{username}',
+                url: '/some/personal/namespace/{username}'
+            }
+        };
+        personalNamespace = {
+            id: 'personal-myUser:root',
+            key: 'personal-myUser',
+            name: 'myUser',
+            url: '/some/personal/namespace/myUser',
+            location: 'personal'
+        };
+
+        namespaces = [
             someNamespace,
             anotherNamespace,
             personalContainerNamespace,
-            personalNamespace,
-            namespaces,
-            provider;
+            personalNamespace
+        ];
 
-        beforeEach(function () {
-            namespaceService = jasmine.createSpyObj(
-                'namespaceService',
-                [
-                    'getPersistenceNamespaces',
-                    'getContainedNamespaces'
-                ]
-            );
+        const roots = [personalContainerNamespace];
+        userContainerProvider = new MCWSUserContainerProvider(openmct, roots);
+        persistenceProvider = new MCWSPersistenceProvider(openmct, roots);
 
-            someNamespace = {
-                id: 'some-namespace:root',
-                key: 'some-namespace',
-                name: 'Some Namespace',
-                url: '/some/namespace/url'
+        // Mock mcws service calls
+        spyOn(userContainerProvider, 'getPersistenceNamespaces')
+            .and.returnValue(Promise.resolve(namespaces));
+        spyOn(userContainerProvider, 'getContainedNamespaces')
+            .and.callFake((namespace) => {
+                if (namespace.id === 'personal') {
+                    return Promise.resolve([personalNamespace]);
+                }
+                return Promise.resolve([]);
+            });
+    });
+
+    describe('MCWSUserContainerProvider', () => {
+        it('gets container model with contained namespaces', async () => {
+            const identifier = {
+                namespace: 'personal',
+                key: 'container'
             };
-            anotherNamespace = {
-                id: 'another-namespace:root',
-                key: 'another-namespace',
-                name: 'Another Namespace',
-                url: '/another/namespace/url',
-                location: 'some-namespace:root'
+            const model = await userContainerProvider.get(identifier);
+
+            expect(model.type).toBe('folder');
+            expect(model.composition).toEqual([{ key: 'root', namespace: 'personal-myUser' }]);
+            expect(model.location).toBe('ROOT');
+        });
+    });
+
+    describe('MCWSPersistenceProvider', () => {
+        let mcwsNamespace;
+
+        beforeEach(() => {
+            // Mock mcws namespace operations
+            const fileOps = {
+                read: () => Promise.resolve({
+                    json: () => Promise.resolve({
+                        type: 'folder',
+                        name: 'Test Object'
+                    })
+                }),
+                create: jasmine.createSpy('create').and.returnValue(Promise.resolve(true)),
+                replace: jasmine.createSpy('replace').and.returnValue(Promise.resolve(true))
             };
-            personalContainerNamespace = {
-                id: 'personal',
-                key: 'personal',
-                name: 'personal',
-                url: '/some/personal/namespace'
-            };
-            personalNamespace = {
-                id: 'personal-myUser:root',
-                key: 'personal-myUser}',
-                name: 'myUser',
-                url: '/some/personal/namespace/myUser',
-                location: 'personal'
+            mcwsNamespace = {
+                opaqueFile: () => fileOps
             };
 
-            namespaces = [
-                someNamespace,
-                anotherNamespace,
-                personalContainerNamespace,
-                personalNamespace
-            ];
-
-            namespaceService
-                .getPersistenceNamespaces
+            spyOn(persistenceProvider, 'getPersistenceNamespaces')
                 .and.returnValue(Promise.resolve(namespaces));
-
-            namespaceService
-                .getContainedNamespaces
-                .and.callFake(function (namespace) {
-                    if (namespace.id === 'personal') {
-                        return Promise.resolve([personalNamespace]);
-                    }
-                    return Promise.resolve([]);
-                });
-
-            provider = new MCWSNamespaceModelProvider(namespaceService);
+            // Mock the private getNamespace method through the mcws import
+            spyOn(mcws, 'namespace').and.returnValue(mcwsNamespace);
         });
 
-        describe('getModels', function () {
-            var someNamespaceModel,
-                anotherNamespaceModel,
-                personalContainerNamespaceModel,
-                personalNamespaceModel,
-                allNamespaceModels;
+        it('gets persisted objects', async () => {
+            const identifier = {
+                namespace: 'personal-myUser',
+                key: 'some-object'
+            };
+            const result = await persistenceProvider.get(identifier);
 
-            beforeEach(function (done) {
-                provider
-                    .getModels([
-                        'some-namespace:root',
-                        'another-namespace:root',
-                        'personal',
-                        'personal-myUser:root'
-                    ])
-                    .then(function (models) {
-                        someNamespaceModel = models['some-namespace:root'];
-                        anotherNamespaceModel =
-                            models['another-namespace:root'];
-                        personalContainerNamespaceModel = models.personal;
-                        personalNamespaceModel = models['personal-myUser:root'];
-                        allNamespaceModels = [
-                            someNamespaceModel,
-                            anotherNamespaceModel,
-                            personalContainerNamespaceModel,
-                            personalNamespaceModel
-                        ];
-                    })
-                    .then(done);
-            });
+            expect(result).toBeDefined();
+            expect(result.type).toBe('folder');
+            expect(result.name).toBe('Test Object');
+            expect(result.identifier).toEqual(identifier);
+        });
 
-            it('sets type to folder', function () {
-                allNamespaceModels.forEach(function (namespaceModel) {
-                    expect(namespaceModel.type).toBe('folder');
-                });
-            });
+        it('handles abort signal when getting objects', async () => {
+            const identifier = {
+                namespace: 'personal-myUser',
+                key: 'some-object'
+            };
+            const abortSignal = new AbortController().signal;
+            
+            await persistenceProvider.get(identifier, abortSignal);
+            
+            expect(mcws.namespace).toHaveBeenCalledWith(
+                jasmine.any(String),
+                { signal: abortSignal }
+            );
+        });
 
-            it('uses location specified in namespace definition', function () {
-                expect(anotherNamespaceModel.location)
-                    .toBe('some-namespace:root');
-                expect(personalNamespaceModel.location)
-                    .toBe('personal');
-            });
+        it('creates new objects', async () => {
+            const domainObject = {
+                identifier: {
+                    namespace: 'some-namespace',
+                    key: 'new-object'
+                },
+                type: 'folder',
+                name: 'New Folder'
+            };
 
-            it('sets default location if not specified', function () {
-                expect(someNamespaceModel.location).toBe('ROOT');
-                expect(personalContainerNamespaceModel.location).toBe('ROOT');
-            });
+            const success = await persistenceProvider.create(domainObject);
+            const expectedModel = {
+                type: 'folder',
+                name: 'New Folder'
+            };
 
-            it('sets composition', function () {
-                expect(someNamespaceModel.composition)
-                    .toEqual(jasmine.any(Array));
-                expect(anotherNamespaceModel.composition)
-                    .toEqual(jasmine.any(Array));
-                expect(personalContainerNamespaceModel.composition)
-                    .toEqual(['personal-myUser:root']);
-                expect(personalNamespaceModel.composition)
-                    .toEqual(jasmine.any(Array));
-            });
+            expect(success).toBe(true);
+            expect(mcwsNamespace.opaqueFile('new-object').create)
+                .toHaveBeenCalledWith(expectedModel);
+        });
+
+        it('updates existing objects', async () => {
+            const domainObject = {
+                identifier: {
+                    namespace: 'some-namespace',
+                    key: 'existing-object'
+                },
+                type: 'folder',
+                name: 'Updated Folder'
+            };
+
+            const success = await persistenceProvider.update(domainObject);
+            const expectedModel = {
+                type: 'folder',
+                name: 'Updated Folder'
+            };
+
+            expect(success).toBe(true);
+            expect(mcwsNamespace.opaqueFile('existing-object').replace)
+                .toHaveBeenCalledWith(expectedModel);
+        });
+
+        it('handles errors during get operation', async () => {
+            const errorNamespace = {
+                opaqueFile: () => ({
+                    read: () => Promise.reject(new Error('Network Error'))
+                })
+            };
+            mcws.namespace.and.returnValue(errorNamespace);
+
+            const identifier = {
+                namespace: 'personal-myUser',
+                key: 'error-object'
+            };
+            const result = await persistenceProvider.get(identifier);
+
+            expect(result).toBeUndefined();
+        });
+
+        it('handles errors during create operation', async () => {
+            const errorNamespace = {
+                opaqueFile: () => ({
+                    create: () => Promise.reject(new Error('Creation Error'))
+                })
+            };
+            mcws.namespace.and.returnValue(errorNamespace);
+
+            const domainObject = {
+                identifier: {
+                    namespace: 'personal-myUser',
+                    key: 'error-object'
+                },
+                type: 'folder'
+            };
+            const success = await persistenceProvider.create(domainObject);
+
+            expect(success).toBe(false);
+        });
+
+        it('handles errors during update operation', async () => {
+            const errorNamespace = {
+                opaqueFile: () => ({
+                    replace: () => Promise.reject(new Error('Update Error'))
+                })
+            };
+            mcws.namespace.and.returnValue(errorNamespace);
+
+            const domainObject = {
+                identifier: {
+                    namespace: 'personal-myUser',
+                    key: 'error-object'
+                },
+                type: 'folder'
+            };
+            const success = await persistenceProvider.update(domainObject);
+
+            expect(success).toBe(false);
         });
     });
 });
